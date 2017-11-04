@@ -26,7 +26,7 @@ int main(){
 	FILE* fw = fopen("initial_training.data","w");
 	FILE* sm = fopen("stream.data","w");
 	FILE* tst = fopen("test_entities.data","w");
-	fprintf(fw,"%d %d 7\n",M,D+1);
+	fprintf(fw,"%d %d 7 1500\n",M,D+1);
 	int cnt = 0;
 	for(int i=0;i<N && cnt < M;i++) if(s.count(data[i][D]) == 0){
 		cnt++;

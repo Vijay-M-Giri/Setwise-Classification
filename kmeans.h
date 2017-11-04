@@ -3,6 +3,6 @@
 
 #include "helper.h"
 
-void kmeans(int K,DATA data,double** centroids,int* cluster);
+void kmeans(int K,DATA data,int dimension,double** centroids,int* cluster);
 
 #endif

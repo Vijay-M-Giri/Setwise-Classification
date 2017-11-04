@@ -1,5 +1,14 @@
 #include "helper.h"
 
+
+
+void freeDATA(DATA data){
+	int i,j;
+	for(i=0;i<data.size;i++)
+		free(data.data[i]);
+	free(data.data);
+}
+
 void showError(char* str){
 	fprintf(stderr,"ERROR: %s.",str);
 	exit(0);
@@ -32,4 +41,18 @@ void chooseRFromN(int n,int r,int* choose){
 	shuffle(n,numbers);
 	for(i=0;i<r;i++)
 		choose[i] = numbers[i];
+}
+
+int closestPoint(double* point, double** points, int dimension, int K){
+	int id = -1;
+	double mn = DBL_MAX;
+	int i,j;
+	for(i=0;i<K;i++){
+		double dis = eucledianDistance(point,points[i],dimension);
+		if(dis < mn){
+			mn = dis; 
+			id = i;
+		}
+	}
+	return id;
 }
