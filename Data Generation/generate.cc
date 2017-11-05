@@ -55,6 +55,8 @@ int main(){
 		if(entity >= 150) entity = 149;
 		cur[bin[i]]++;
 		entity = 150 * bin[i] + entity + 1;
+		data[i][0] = data[i][D-1];
+		data[i][D-1] = bin[i]+1;
 		data[i].push_back(entity);
 	}
 	random_shuffle(data,data+N);

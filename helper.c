@@ -1,7 +1,5 @@
 #include "helper.h"
 
-
-
 void freeDATA(DATA data){
 	int i,j;
 	for(i=0;i<data.size;i++)
@@ -51,6 +49,40 @@ int closestPoint(double* point, double** points, int dimension, int K){
 		double dis = eucledianDistance(point,points[i],dimension);
 		if(dis < mn){
 			mn = dis; 
+			id = i;
+		}
+	}
+	return id;
+}
+
+double magnitude(double* A,int dimension){
+	double mag = 0.0;
+	int i;
+	for(i=0;i<dimension;i++)
+		mag += A[i] * A[i];
+	mag = sqrt(mag);
+	return mag;
+}
+
+double cosineDistance(double* A,double* B,int dimension){
+	int i;
+	double ma = magnitude(A,dimension);
+	double mb = magnitude(B,dimension);
+	double dot = 0.0;
+	for(i=0;i<dimension;i++)
+		dot += A[i] * B[i];
+	double dis = dot / ma / mb;
+	dis = 1.0 - dis;
+	return dis;
+}
+
+int closestProfile(ENTITY entity, ENTITY* entities, int size){
+	int i,id = -1;
+	double mn = DBL_MAX;
+	for(i=1;i<=size;i++){
+		double dis = cosineDistance(entity.fingerprint,entities[i].fingerprint,entity.dimension);
+		if(dis < mn){
+			mn = dis;
 			id = i;
 		}
 	}

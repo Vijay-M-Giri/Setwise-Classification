@@ -23,8 +23,11 @@ typedef struct{
 	int dimension;
 	int label;
 	int profile;
+	int cntUpdate;
 }ENTITY;
 
+int closestProfile(ENTITY entity, ENTITY* entities, int size);
+double cosineDistance(double* A,double* B,int dimension);
 int closestPoint(double* point, double** points, int dimension, int K);
 void freeDATA(DATA data);
 void showError(char* str);
