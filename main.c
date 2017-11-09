@@ -136,17 +136,12 @@ int main(int argc,char* argv[]){
 	int i,j,o;
 
 	// taking inputs
-	while((o = getopt(argc,argv,"q:p:m:f:h")) != -1){
+	while((o = getopt(argc,argv,"q:m:f:h")) != -1){
 		switch(o){
 			case 'q':
 			Q = atoi(optarg);
 			if(Q < 1)
 				showError("Number of anchor points 'q' should be greater than 0");
-			break;
-			case 'p':
-			P = atoi(optarg);
-			if(P < 1)
-				showError("Number of class profiles should be greater than 0");
 			break;
 			case 'm':
 			MIN_STAT = atoi(optarg);
