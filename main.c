@@ -1,7 +1,8 @@
 #include <unistd.h>
 #include "helper.h"
-#include "kmeans.h"
+#include "K-Means/kmeans.h"
 #include "R-Tree/index.h"
+#include "MaxHeap/maxHeap.h"
 
 int Q; // number of anchor points
 int MIN_STAT; // minimum number of data points that must be present in entity before including it to the profile
@@ -15,7 +16,7 @@ struct Branch** leafPointers; // array of pointers which point to the leaf of th
 							  //leafPointers[i] points to the leaf of the tree which corresponds to ith entity
 
 void loadData(){
-	FILE* fp = fopen("initial_training.data","r");
+	FILE* fp = fopen("Data Generation/initial_training.data","r");
 	fscanf(fp,"%d %d %d %d",&data.size,&data.dimension,&data.noOfClass,&data.noOfEntity);
 	data.data = (double**) malloc(sizeof(double*) * data.size); 
 	int i,j;
@@ -90,11 +91,6 @@ void constructRTrees(){
 	}
 }
 
-int classifyEntity(int entity){
-	int i,j;
-	int classLabel = -1;
-	return classLabel;
-}
 
 int isInterrupted(clock_t tstart,double assignedTime){
 	clock_t tend = clock();
@@ -104,9 +100,88 @@ int isInterrupted(clock_t tstart,double assignedTime){
 	return 0;
 }
 
+int classifyEntity(int entity,clock_t tstart,double assignedTime){
+	int i,j;
+	int classLabel = -1;
+	double mx = -DBL_MAX; // finding max because the keys are stored as negatives
+	int maxHeapSize = 10000;
+	MaxHeap *frontiers[data.noOfClass+1];
+	
+	// initialize frontiers and inserting the root of each tree into the heap
+	for(i=1;i<=data.noOfClass;i++){
+		frontiers[i] = createHeap(maxHeapSize);
+		HNode* temp = (HNode*) malloc(sizeof(HNode));
+		temp->nodeInHeap = roots[i];
+		// multiplied with -1 to make the MaxHeap into a MinHeap
+		temp->key = -1.0 * cosineDistance(temp->nodeInHeap->agg.fingerprint,
+										entities[entity].fingerprint,Q);
+		insertKey(frontiers[i],temp);
+	}
+
+	int robin = 1;
+	int interrupted = 0;
+
+	while(robin){ // round robin among the classes
+
+		robin = 0;
+		for(i=1;i<=data.noOfClass;i++){
+			if(frontiers[i]->heap_size <= 0) continue;
+			if(isInterrupted(tstart,assignedTime)){
+				interrupted = 1;
+				break;
+			}
+			HNode* nextMax = extractMax(frontiers[i]);
+			struct RNode* rnode = nextMax->nodeInHeap;
+			if(rnode->level == 0){ // reached the leaf
+				for(j=0;j<MAXCARD;j++){
+					if(rnode->branch[j].child != NULL){
+						int id = (int) rnode->branch[j].child;
+						double dis = -1.0 * cosineDistance(entities[id].fingerprint,
+													entities[entity].fingerprint,Q);
+						if(dis >= mx){
+							mx = dis;
+							classLabel = i;
+						}
+					}
+				}
+			}
+			else{
+				for(j=0;j<MAXCARD;j++){
+					if(rnode->branch[j].child != NULL){
+						HNode* temp = (HNode*) malloc(sizeof(HNode));
+						temp->nodeInHeap = rnode->branch[j].child;
+						temp->key = -1.0 * cosineDistance(temp->nodeInHeap->agg.fingerprint,
+														entities[entity].fingerprint,Q);
+						insertKey(frontiers[i],temp);
+					}
+				}
+			}
+			free(nextMax);
+			if(frontiers[i]->heap_size > 0) robin = 1;
+		}
+		if(interrupted)
+			break;
+	}
+
+	for(i=1;i<=data.noOfClass;i++){
+		if(frontiers[i]->heap_size <= 0) continue;
+		HNode* nextMax = extractMax(frontiers[i]);
+		if(nextMax->key >= mx){
+			mx = nextMax->key;
+			classLabel = i;
+		}
+		// free the heap
+		free(nextMax);
+		freeHeap(frontiers[i]);
+	}
+
+	return classLabel;
+}
+
+
 void processStream(){
 	int i,j;
-	FILE* fp = fopen("stream.data","r");
+	FILE* fp = fopen("Data Generation/stream.data","r");
 	FILE* ftime = fopen("Data Generation/inter_arrival_time.data","r");
 	int flag;
 	double temp , point[data.dimension], assignedTime, mu;
@@ -163,7 +238,7 @@ void processStream(){
 			int id = closestPoint(point,anchorPoints.data,data.dimension-2,Q);
 			entities[entity].fingerprint[id]++;
 			// Finding the class label of the entity
-			int classLabel = classifyEntity(entity);
+			int classLabel = classifyEntity(entity,tstart,assignedTime);
 			printf("Entity %d belongs to class %d.\n",entity,classLabel);
 		}
 	}
@@ -172,10 +247,10 @@ void processStream(){
 
 void printFinalResult(){
 	int i,j;
-	FILE* fp = fopen("result.data","w");
+	FILE* fp = fopen("Data Generation/result.data","w");
 	for(i=1;i<=data.noOfEntity;i++){
 		if(entities[i].label == 0){
-			int classLabel = classifyEntity(i);
+			int classLabel = classifyEntity(i,clock(),0.1);
 			fprintf(fp,"%d %d\n",i,classLabel);
 		}
 	}
@@ -230,6 +305,6 @@ int main(int argc,char* argv[]){
 	processStream();
 	printf("Stream processed.\n");
 	
-	//printFinalResult();
+	printFinalResult();
 	return 0;
 }
