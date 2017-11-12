@@ -1,15 +1,18 @@
 #include <unistd.h>
 #include "helper.h"
 #include "kmeans.h"
+#include "R-Tree/index.h"
 
 int Q; // number of anchor points
-int P; // number of class profiles
 int MIN_STAT; // minimum number of data points that must be present in entity before including it to the profile
 double UPD_FRAC; // the fraction of updates below which the class profiles of the entity is not changed
 DATA data; // initial training data
 ENTITY* entities; // array of training entities
 DATA anchorPoints; // all anchor points
 int* cntEntities; // stores the number of entities in initial training data for each class
+struct RNode** roots; // array of roots of the tree of each class
+struct Branch** leafPointers; // array of pointers which point to the leaf of the tree. 
+							  //leafPointers[i] points to the leaf of the tree which corresponds to ith entity
 
 void loadData(){
 	FILE* fp = fopen("initial_training.data","r");
@@ -45,64 +48,113 @@ void getAnchorPoints(){
 	}*/
 }
 
+void entitiesToFingerprints(){
+	int i,j;
+
+	// Initializing the entity array
+	entities = (ENTITY*) malloc(sizeof(ENTITY) * (data.noOfEntity+1));
+	for(i=1;i<=data.noOfEntity;i++){
+		initEntity(&entities[i],Q);
+	}
+
+	// Iterate through all the initial data points
+	for(i=0;i<data.size;i++){
+		int entity = data.data[i][data.dimension-1];
+		entities[entity].size++;
+		entities[entity].label = data.data[i][data.dimension-2];
+		int id = closestPoint(data.data[i],anchorPoints.data,data.dimension-2,Q);
+		entities[entity].fingerprint[id]++; 
+	}
+}
+
+void constructRTrees(){
+	int i,j;
+	
+	// initialize
+	roots = (struct RNode**) calloc(data.noOfClass+1,sizeof(struct RNode*));
+	for(i=1;i<=data.noOfClass;i++)
+		roots[i] = RTreeNewIndex();
+	leafPointers = (struct Branch**) calloc(data.noOfEntity+1,sizeof(struct Branch*));
+	
+	// insert entities to its respective class
+	for(i=1;i<=data.noOfEntity;i++){
+		if(entities[i].size >= MIN_STAT && entities[i].label > 0){ 
+			// size should be greater than MIN_STAT to go into tree
+			struct Rect rect;
+			for(j=0;j<NUMDIMS;j++){
+				rect.boundary[j] = rect.boundary[NUMDIMS+j] = entities[i].fingerprint[j];
+			}
+			// i is rect ID. Note: root can change
+			RTreeInsertRect(&rect, i, &roots[entities[i].label], 0); 
+		}
+	}
+}
+
 int classifyEntity(int entity){
 	int i,j;
 	int classLabel = -1;
-	double mn = DBL_MAX;
-	for(i=1;i<=data.noOfClass;i++){
-		for(j=1;j<=profileCount[i];j++){
-			double dis = cosineDistance(entities[entity].fingerprint,profiles[i][j].fingerprint,Q);
-			if(dis < mn){
-				mn = dis;
-				classLabel = i;
-			}
-		}
-	}
 	return classLabel;
+}
+
+int isInterrupted(clock_t tstart,double assignedTime){
+	clock_t tend = clock();
+	double diff = (double) (tend - tstart) / CLOCKS_PER_SEC * 1000.0; 
+	if(diff >= assignedTime)
+		return 1;
+	return 0;
 }
 
 void processStream(){
 	int i,j;
 	FILE* fp = fopen("stream.data","r");
+	FILE* ftime = fopen("Data Generation/inter_arrival_time.data","r");
 	int flag;
-	double temp , point[data.dimension];
+	double temp , point[data.dimension], assignedTime, mu;
+	mu = 0.010; // assign the mean of the exponential distribution
+	clock_t tstart;
 	int totProcessed = 0;
+
 	while((flag = fscanf(fp,"%lf",&temp)) != EOF){ // stream starts
 		// reading data point
 		totProcessed++;
-		//printf("Processing point : %d\n",totProcessed);
 		point[0] = temp;
 		for(i=1;i<data.dimension;i++){
 			fscanf(fp,"%lf",&point[i]);
 		}
+		fscanf(ftime,"%lf",&assignedTime);
+		assignedTime *= mu;
+		tstart = clock(); // time starts for processing the current point
 		int entity = point[data.dimension-1];
 		int label = point[data.dimension-2];
+
 		if(label != -1){ // training point
+
 			entities[entity].cntUpdate++;
 			entities[entity].size++;
 			int id = closestPoint(point,anchorPoints.data,data.dimension-2,Q);
 			entities[entity].fingerprint[id]++;
+
 			if(entities[entity].size == MIN_STAT){ // Remove from wait list
-				id = closestProfile(entities[entity],profiles[label],profileCount[label]);
+				struct Rect rect;
+				for(j=0;j<NUMDIMS;j++){
+					rect.boundary[j] = rect.boundary[NUMDIMS+j] = entities[entity].fingerprint[j];
+				}
+				RTreeInsertRect(&rect, entity, &roots[label], 0); 
 				entities[entity].cntUpdate = 0;
-				entities[entity].profile = id;
-				profiles[label][id].size++;
-				for(i=0;i<Q;i++)
-					profiles[label][id].fingerprint[i] += entities[entity].fingerprint[i];
 			}
 			else if( entities[entity].cntUpdate >= UPD_FRAC * entities[entity].size){
-				// check for change in class profiles
-				id = closestProfile(entities[entity],profiles[label],profileCount[label]);
-				if(id != entities[entity].profile){ // class profile has changed
-					int profile = entities[entity].profile;
-					profiles[label][profile].size--;
-					for(i=0;i<Q;i++)
-						profiles[label][profile].fingerprint[i] -= entities[entity].fingerprint[i];
-					profiles[label][id].size++;
-					for(i=0;i<Q;i++)
-						profiles[label][id].fingerprint[i] += entities[entity].fingerprint[i];
-					entities[entity].profile = id;
+
+				struct Branch *b = leafPointers[entity];
+				b->rect.boundary[id]++; b->rect.boundary[NUMDIMS+id]++;
+				b->outer->lazy.fingerprint[id]++;
+				b->outer->lazy.size++;
+				// propagate up
+				while(b && !isInterrupted(tstart,assignedTime)){ // b has not reached root
+					RTreeUpdateLazy(b->outer);
+					b = b->outer->parent;
 				}
+				if(b) printf("Interrupted\n");
+				else printf("Completed\n");
 				entities[entity].cntUpdate = 0;
 			}
 		}
@@ -152,7 +204,7 @@ int main(int argc,char* argv[]){
 		}
 	}
 
-	if(Q < 1 || P < 1) 
+	if(Q < 1) 
 		showError("Invalid input parameters.");
 	
 	// load initial training data
@@ -167,6 +219,10 @@ int main(int argc,char* argv[]){
 	entitiesToFingerprints();
 	printf("Entities are reperesented as fingerprints.\n");
 
+	// Construct R-trees for every class
+	constructRTrees();
+	printf("Trees constructed for each class.\n");
+
 	// Free initial data as it is not required further
 	freeDATA(data);
 	
@@ -174,6 +230,6 @@ int main(int argc,char* argv[]){
 	processStream();
 	printf("Stream processed.\n");
 	
-	printFinalResult();
+	//printFinalResult();
 	return 0;
 }
