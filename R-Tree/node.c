@@ -12,6 +12,8 @@ static void RTreeInitBranch(struct Branch *b)
 {
 	RTreeInitRect(&(b->rect));
 	b->child = NULL;
+	// custom : 1 lines
+	b->outer = NULL;
 }
 
 
@@ -26,6 +28,10 @@ void RTreeInitNode(struct RNode *N)
 	n->level = -1;
 	for (i = 0; i < MAXCARD; i++)
 		RTreeInitBranch(&(n->branch[i]));
+	// custom : 3 lines
+	n->parent = NULL;
+	initEntity(&n->agg, NUMDIMS);
+	initEntity(&n->lazy, NUMDIMS);
 }
 
 
@@ -47,6 +53,9 @@ struct RNode * RTreeNewNode()
 void RTreeFreeNode(struct RNode *p)
 {
 	assert(p);
+	// custom : 2 lines
+	freeEntity(p->agg);
+	freeEntity(p->lazy);
 	//delete p;
 	free(p);
 }
@@ -88,8 +97,8 @@ void RTreePrintNode(struct RNode *n, int depth)
 	for (i=0; i<n->count; i++)
 	{
 		if(n->level == 0) {
-			// RTreeTabIn(depth);
-			// printf("\t%d: data = %d\n", i, n->branch[i].child);
+			RTreeTabIn(depth);
+			printf("%d: data = %d\n", i, (int)n->branch[i].child);
 		}
 		else {
 			RTreeTabIn(depth);
@@ -150,9 +159,9 @@ int RTreePickBranch(struct Rect *R, struct RNode *N)
 		if (n->branch[i].child)
 		{
 			rr = &n->branch[i].rect;
-			area = RTreeRectSphericalVolume(rr);
+			area = RTreeRectVolume(rr);
 			tmp_rect = RTreeCombineRect(r, rr);
-			increase = RTreeRectSphericalVolume(&tmp_rect) - area;
+			increase = RTreeRectVolume(&tmp_rect) - area;
 			if (increase < bestIncr || first_time)
 			{
 				best = i;
@@ -190,12 +199,32 @@ int RTreeAddBranch(struct Branch *B, struct RNode *N, struct RNode **New_node)
 
 	if (n->count < MAXKIDS(n))  /* split won't be necessary */
 	{
+		// custom : 11 lines
+		b->outer = n; 
+		if(n->level > 0 && b->child != NULL){ // branch has a child
+			for(i=0;i<NUMDIMS;i++)
+				n->agg.fingerprint[i] += b->child->agg.fingerprint[i];
+			n->agg.size += b->child->agg.size;
+		}
+		else{ // if leaf
+			for(i=0;i<NUMDIMS;i++)
+				n->agg.fingerprint[i] += b->rect.boundary[i],
+				n->agg.size += b->rect.boundary[i];
+		}
 		for (i = 0; i < MAXKIDS(n); i++)  /* find empty branch */
 		{
 			if (n->branch[i].child == NULL)
 			{
 				n->branch[i] = *b;
 				n->count++;
+				// custom : 7 lines
+				if(n->level == 0){ // if n is a leaf
+					int id = (int) b->child;
+					leafPointers[id] = &n->branch[i];
+				}
+				else if(b->child){
+					n->branch[i].child->parent = &n->branch[i];
+				}
 				break;
 			}
 		}
@@ -204,6 +233,7 @@ int RTreeAddBranch(struct Branch *B, struct RNode *N, struct RNode **New_node)
 	else
 	{
 		assert(new_node);
+		RTreeUpdateLazy(n); // custom
 		RTreeSplitNode(n, b, new_node);
 		return 1;
 	}
@@ -220,4 +250,22 @@ void RTreeDisconnectBranch(struct RNode *n, int i)
 
 	RTreeInitBranch(&(n->branch[i]));
 	n->count--;
+}
+
+// Custom function for lazy update. Here the progation is from bottom-up.
+//
+void RTreeUpdateLazy(struct RNode* n){
+	if(n == NULL || n->lazy.size == 0) // nothing to update
+		return ;
+	int i;
+	for(i=0;i<NUMDIMS;i++){
+		if(n->parent)
+			n->parent->outer->lazy.fingerprint[i] += n->lazy.fingerprint[i];
+		n->agg.fingerprint[i] += n->lazy.fingerprint[i];
+		n->lazy.fingerprint[i] = 0;
+	}
+	if(n->parent)
+		n->parent->outer->lazy.size += n->lazy.size;
+	n->agg.size += n->lazy.size;
+	n->lazy.size = 0;
 }

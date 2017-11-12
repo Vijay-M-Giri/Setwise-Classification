@@ -169,6 +169,7 @@ static double sphere_volume(double dimension)
 }
 static const double UnitSphereVolume = sphere_volume(NUMDIMS);
 
+
 #else
 
 /* Precomputed volumes of the unit spheres for the first few dimensions */
@@ -195,9 +196,14 @@ const double UnitSphereVolumes[] = {
 	0.046622,  /* dimension  19 */
 	0.025807,  /* dimension  20 */
 };
+
+/* Uncomment this only in case of dimension <= 20 and 
+ * you are using RTreeRectSphericalVolume() as the area metric
 #if NUMDIMS > 20
 #	error "not enough precomputed sphere volumes"
 #endif
+*/
+
 #define UnitSphereVolume UnitSphereVolumes[NUMDIMS]
 
 #endif
@@ -212,7 +218,7 @@ const double UnitSphereVolumes[] = {
  * A fast approximation to the volume of the bounding sphere for the
  * given Rect. By Paul B.
  */
-RectReal RTreeRectSphericalVolume(struct Rect *R)
+RectReal RTreeRectVolume(struct Rect *R)
 {
 	register struct Rect *r = R;
 	register int i;

@@ -3,10 +3,12 @@
 
 /* PGSIZE is normally the natural page size of the machine */
 #define PGSIZE	512
-#define NUMDIMS	2	/* number of dimensions */
+#define NUMDIMS	5	/* number of dimensions */
 #define NDEBUG
 
-typedef float RectReal;
+#include "../helper.h"
+
+typedef double RectReal;
 
 
 /*-----------------------------------------------------------------------------
@@ -33,16 +35,23 @@ struct Branch
 {
 	struct Rect rect;
 	struct RNode *child;
+	// custom : 1 lines
+	struct RNode *outer;
 };
 
 /* max branching factor of a node */
-#define MAXCARD (int)((PGSIZE-(2*sizeof(int))) / sizeof(struct Branch))
+//#define MAXCARD (int)((PGSIZE-(2*sizeof(int))) / sizeof(struct Branch))
+#define MAXCARD 8
 
 struct RNode
 {
 	int count;
 	int level; /* 0 is leaf, others positive */
 	struct Branch branch[MAXCARD];
+	// custom : 3 lines
+	struct Branch *parent;
+	ENTITY agg;
+	ENTITY lazy;
 };
 
 struct ListNode
@@ -88,5 +97,8 @@ extern int RTreeSetNodeMax(int);
 extern int RTreeSetLeafMax(int);
 extern int RTreeGetNodeMax();
 extern int RTreeGetLeafMax();
+
+// custom : 1 lines
+extern void RTreeUpdateLazy(struct RNode* n);
 
 #endif /* _INDEX_ */

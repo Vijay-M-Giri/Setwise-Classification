@@ -1,5 +1,17 @@
 #include "helper.h"
 
+void initEntity(ENTITY* entity,int dimension){
+	entity->dimension = dimension;
+	entity->fingerprint = (double*) calloc(dimension,sizeof(double));
+	entity->size = 0;
+	entity->cntUpdate = entity->label = 0;
+}
+
+void freeEntity(ENTITY entity){
+	if(entity.fingerprint)
+		free(entity.fingerprint);
+}
+
 void freeDATA(DATA data){
 	int i,j;
 	for(i=0;i<data.size;i++)
@@ -74,17 +86,4 @@ double cosineDistance(double* A,double* B,int dimension){
 	double dis = dot / ma / mb;
 	dis = 1.0 - dis;
 	return dis;
-}
-
-int closestProfile(ENTITY entity, ENTITY* entities, int size){
-	int i,id = -1;
-	double mn = DBL_MAX;
-	for(i=1;i<=size;i++){
-		double dis = cosineDistance(entity.fingerprint,entities[i].fingerprint,entity.dimension);
-		if(dis < mn){
-			mn = dis;
-			id = i;
-		}
-	}
-	return id;
 }

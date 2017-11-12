@@ -76,7 +76,7 @@ static void RTreeClassify(int i, int group, struct PartitionVars *p)
 	else
 		p->cover[group] = RTreeCombineRect(&BranchBuf[i].rect,
 					&p->cover[group]);
-	p->area[group] = RTreeRectSphericalVolume(&p->cover[group]);
+	p->area[group] = RTreeRectVolume(&p->cover[group]);
 	p->count[group]++;
 }
 
@@ -218,7 +218,7 @@ static void RTreePigeonhole(struct PartitionVars *P)
 						&p->cover[group]);
 				else
 					newCover[group] = BranchBuf[i].rect;
-				newArea[group] = RTreeRectSphericalVolume(
+				newArea[group] = RTreeRectVolume(
 							&newCover[group]);
 				increase[group] = newArea[group]-p->area[group];
 			}
@@ -302,6 +302,13 @@ void RTreeSplitNode(struct RNode *n, struct Branch *b, struct RNode **nn)
 	assert(n);
 	assert(b);
 
+	/* Custom : 5 lines : Clearing the agg and lazy of node n */
+	int i;
+	for(i=0;i<n->agg.dimension;i++){
+		n->agg.fingerprint[i] = n->lazy.fingerprint[i] = 0;
+	}
+	n->agg.size = n->lazy.size = 0;
+
 	/* load all the branches into a buffer, initialize old node */
 	level = n->level;
 	RTreeGetBranches(n, b);
@@ -320,6 +327,7 @@ void RTreeSplitNode(struct RNode *n, struct Branch *b, struct RNode **nn)
 	(*nn)->level = n->level = level;
 	RTreeLoadNodes(n, *nn, p);
 	assert(n->count + (*nn)->count == NODECARD+1);
+
 }
 
 
@@ -356,7 +364,7 @@ static void RTreePrintPVars(struct PartitionVars *p)
 	printf("count[1] = %d  area = %f\n", p->count[1], p->area[1]);
 	printf("total area = %f  effectiveness = %3.2f\n",
 		p->area[0] + p->area[1],
-		RTreeRectSphericalVolume(&CoverSplit)/(p->area[0]+p->area[1]));
+		RTreeRectVolume(&CoverSplit)/(p->area[0]+p->area[1]));
 
 	printf("cover[0]:\n");
 	RTreePrintRect(&p->cover[0], 0);

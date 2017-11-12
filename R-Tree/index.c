@@ -77,7 +77,7 @@ static int RTreeInsertRect2(struct Rect *r,
 	register int level = Level;
 */
 
-	register int i;
+	register int i,j;
 	struct Branch b;
 	struct RNode *n2;
 
@@ -89,6 +89,11 @@ static int RTreeInsertRect2(struct Rect *r,
 	if (n->level > level)
 	{
 		i = RTreePickBranch(r, n);
+		// custom : 3 lines
+		for(j=0;j<NUMDIMS;j++)
+			n->agg.fingerprint[j] += r->boundary[j] ,
+			n->agg.size += r->boundary[j];
+
 		if (!RTreeInsertRect2(r, tid, n->branch[i].child, &n2, level))
 		{
 			// child was not split
