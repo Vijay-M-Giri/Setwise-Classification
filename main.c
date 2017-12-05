@@ -14,7 +14,7 @@ ENTITY** profiles; // stores profiles of each class
 int* cntEntities; // stores the number of entities in initial training data for each class
 
 void loadData(){
-	FILE* fp = fopen("initial_training.data","r");
+	FILE* fp = fopen("../temp/Data1/initial_training.data","r");
 	fscanf(fp,"%d %d %d %d",&data.size,&data.dimension,&data.noOfClass,&data.noOfEntity);
 	data.data = (double**) malloc(sizeof(double*) * data.size); 
 	int i,j;
@@ -189,7 +189,7 @@ int classifyEntity(int entity){
 	double mn = DBL_MAX;
 	for(i=1;i<=data.noOfClass;i++){
 		for(j=1;j<=profileCount[i];j++){
-			double dis = cosineDistance(entities[entity].fingerprint,profiles[i][j].fingerprint,Q);
+			double dis = cosineDistance(entities[entity],profiles[i][j]);
 			if(dis < mn){
 				mn = dis;
 				classLabel = i;
@@ -201,14 +201,14 @@ int classifyEntity(int entity){
 
 void processStream(){
 	int i,j;
-	FILE* fp = fopen("stream.data","r");
+	FILE* fp = fopen("../temp/Data1/stream.data","r");
 	int flag;
 	double temp , point[data.dimension];
 	int totProcessed = 0;
 	while((flag = fscanf(fp,"%lf",&temp)) != EOF){ // stream starts
 		// reading data point
 		totProcessed++;
-		//printf("Processing point : %d\n",totProcessed);
+		if(totProcessed % 10000) printf("Total Processed : %d\n",totProcessed);
 		point[0] = temp;
 		for(i=1;i<data.dimension;i++){
 			fscanf(fp,"%lf",&point[i]);
@@ -224,11 +224,13 @@ void processStream(){
 				id = closestProfile(entities[entity],profiles[label],profileCount[label]);
 				entities[entity].cntUpdate = 0;
 				entities[entity].profile = id;
+				entities[entity].label = label;
 				profiles[label][id].size++;
 				for(i=0;i<Q;i++)
 					profiles[label][id].fingerprint[i] += entities[entity].fingerprint[i];
 			}
-			else if( entities[entity].cntUpdate >= UPD_FRAC * entities[entity].size){
+			else if( entities[entity].size > MIN_STAT && 
+				entities[entity].cntUpdate >= UPD_FRAC * entities[entity].size){
 				// check for change in class profiles
 				id = closestProfile(entities[entity],profiles[label],profileCount[label]);
 				if(id != entities[entity].profile){ // class profile has changed
@@ -249,8 +251,8 @@ void processStream(){
 			int id = closestPoint(point,anchorPoints.data,data.dimension-2,Q);
 			entities[entity].fingerprint[id]++;
 			// Finding the class label of the entity
-			int classLabel = classifyEntity(entity);
-			printf("Entity %d belongs to class %d.\n",entity,classLabel);
+			//int classLabel = classifyEntity(entity);
+			//printf("Entity %d belongs to class %d.\n",entity,classLabel);
 		}
 	}
 	fclose(fp);
