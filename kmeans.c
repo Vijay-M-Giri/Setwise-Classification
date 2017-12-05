@@ -4,6 +4,9 @@ void kmeans(int K,DATA data,int dimension,double** centroids,int* cluster){
 	if(K > data.size){
 		showError("K is greater than total points");
 	}
+	if(K < 0){
+		showError("K should be atleast 1");
+	}
 	int choose[K+1];
 	chooseRFromN(data.size,K,choose);
 	int i,j;
