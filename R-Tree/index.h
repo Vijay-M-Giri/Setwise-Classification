@@ -3,7 +3,7 @@
 
 /* PGSIZE is normally the natural page size of the machine */
 #define PGSIZE	512
-#define NUMDIMS	5	/* number of dimensions */
+#define NUMDIMS	20	/* number of dimensions */
 #define NDEBUG
 
 #include "../helper.h"

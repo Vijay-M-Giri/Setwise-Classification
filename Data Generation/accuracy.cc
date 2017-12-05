@@ -3,12 +3,13 @@
 using namespace std;
 
 const int N = 300;
+const int E = 1500;
 
 map<int,int> mp;
 
 int main(){
 	FILE* fp = fopen("Data Generation/entity_class.data","r");
-	for(int i=0;i<1500;i++){
+	for(int i=0;i<E;i++){
 		int a,b;
 		fscanf(fp,"%d %d",&a,&b);
 		mp[a] = b;

@@ -27,10 +27,11 @@ typedef struct{
 
 
 extern struct Branch** leafPointers;
+extern int Q;
 
 extern void initEntity(ENTITY* entity,int dimension);
 extern void freeEntity(ENTITY entity);
-extern double cosineDistance(double* A,double* B,int dimension);
+extern double cosineDistance(ENTITY A,ENTITY B);
 extern int closestPoint(double* point, double** points, int dimension, int K);
 extern void freeDATA(DATA data);
 extern void showError(char* str);

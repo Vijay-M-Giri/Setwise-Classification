@@ -12,7 +12,7 @@ int main(){
 	T = gsl_rng_rand48;
 	random_gen = gsl_rng_alloc(T);
 	double mu = 1.0;
-	int N = 481012;
+	int N = 100000000;
 	FILE* fp = fopen("inter_arrival_time.data","w");
 	for(int i=0;i<N;i++){
 		double time = gsl_ran_exponential( random_gen , mu);

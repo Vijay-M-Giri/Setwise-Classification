@@ -45,12 +45,14 @@ void shuffle(int n,int* array){
 }
 
 void chooseRFromN(int n,int r,int* choose){
-	int i,numbers[n];
+	int i;
+	int* numbers = (int*) malloc(sizeof(int)*n);
 	for(i=0;i<n;i++)
 		numbers[i] = i;
 	shuffle(n,numbers);
 	for(i=0;i<r;i++)
 		choose[i] = numbers[i];
+	free(numbers);
 }
 
 int closestPoint(double* point, double** points, int dimension, int K){
@@ -76,14 +78,23 @@ double magnitude(double* A,int dimension){
 	return mag;
 }
 
-double cosineDistance(double* A,double* B,int dimension){
+double cosineDistance(ENTITY A,ENTITY B){
 	int i;
-	double ma = magnitude(A,dimension);
-	double mb = magnitude(B,dimension);
+	double* normalizedA = (double*) malloc(sizeof(double)*A.dimension);
+	double* normalizedB = (double*) malloc(sizeof(double)*B.dimension);
+	for(i=0;i<A.dimension;i++){
+		normalizedA[i] = A.fingerprint[i]/A.size;
+		normalizedB[i] = B.fingerprint[i]/B.size;
+	}
+	double ma = magnitude(normalizedA,A.dimension);
+	double mb = magnitude(normalizedB,B.dimension);
 	double dot = 0.0;
-	for(i=0;i<dimension;i++)
-		dot += A[i] * B[i];
+	for(i=0;i<A.dimension;i++)
+		dot += normalizedA[i] * normalizedB[i];
 	double dis = dot / ma / mb;
 	dis = 1.0 - dis;
+	// free
+	free(normalizedA);
+	free(normalizedB);
 	return dis;
 }

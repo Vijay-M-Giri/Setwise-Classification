@@ -15,8 +15,13 @@ struct RNode** roots; // array of roots of the tree of each class
 struct Branch** leafPointers; // array of pointers which point to the leaf of the tree. 
 							  //leafPointers[i] points to the leaf of the tree which corresponds to ith entity
 
+char* strInitialData = "../temp/Data1/initial_training.data";
+char* strStreamData = "../temp/Data1/stream.data";
+char* strInterarrival = "Data Generation/inter_arrival_time.data";
+char* strResults = "../temp/Data1/result.data";
+
 void loadData(){
-	FILE* fp = fopen("Data Generation/initial_training.data","r");
+	FILE* fp = fopen(strInitialData,"r");
 	fscanf(fp,"%d %d %d %d",&data.size,&data.dimension,&data.noOfClass,&data.noOfEntity);
 	data.data = (double**) malloc(sizeof(double*) * data.size); 
 	int i,j;
@@ -113,8 +118,8 @@ int classifyEntity(int entity,clock_t tstart,double assignedTime){
 		HNode* temp = (HNode*) malloc(sizeof(HNode));
 		temp->nodeInHeap = roots[i];
 		// multiplied with -1 to make the MaxHeap into a MinHeap
-		temp->key = -1.0 * cosineDistance(temp->nodeInHeap->agg.fingerprint,
-										entities[entity].fingerprint,Q);
+		temp->key = -1.0 * cosineDistance(temp->nodeInHeap->agg,
+										entities[entity]);
 		insertKey(frontiers[i],temp);
 	}
 
@@ -136,8 +141,8 @@ int classifyEntity(int entity,clock_t tstart,double assignedTime){
 				for(j=0;j<MAXCARD;j++){
 					if(rnode->branch[j].child != NULL){
 						int id = (int) rnode->branch[j].child;
-						double dis = -1.0 * cosineDistance(entities[id].fingerprint,
-													entities[entity].fingerprint,Q);
+						double dis = -1.0 * cosineDistance(entities[id],
+													entities[entity]);
 						if(dis >= mx){
 							mx = dis;
 							classLabel = i;
@@ -150,8 +155,8 @@ int classifyEntity(int entity,clock_t tstart,double assignedTime){
 					if(rnode->branch[j].child != NULL){
 						HNode* temp = (HNode*) malloc(sizeof(HNode));
 						temp->nodeInHeap = rnode->branch[j].child;
-						temp->key = -1.0 * cosineDistance(temp->nodeInHeap->agg.fingerprint,
-														entities[entity].fingerprint,Q);
+						temp->key = -1.0 * cosineDistance(temp->nodeInHeap->agg,
+														entities[entity]);
 						insertKey(frontiers[i],temp);
 					}
 				}
@@ -181,8 +186,8 @@ int classifyEntity(int entity,clock_t tstart,double assignedTime){
 
 void processStream(){
 	int i,j;
-	FILE* fp = fopen("Data Generation/stream.data","r");
-	FILE* ftime = fopen("Data Generation/inter_arrival_time.data","r");
+	FILE* fp = fopen(strStreamData,"r");
+	FILE* ftime = fopen(strInterarrival,"r");
 	int flag;
 	double temp , point[data.dimension], assignedTime, mu;
 	mu = 0.010; // assign the mean of the exponential distribution
@@ -192,6 +197,7 @@ void processStream(){
 	while((flag = fscanf(fp,"%lf",&temp)) != EOF){ // stream starts
 		// reading data point
 		totProcessed++;
+		if(totProcessed % 10000 == 0) printf("Total processed : %d\n",totProcessed);
 		point[0] = temp;
 		for(i=1;i<data.dimension;i++){
 			fscanf(fp,"%lf",&point[i]);
@@ -216,8 +222,10 @@ void processStream(){
 				}
 				RTreeInsertRect(&rect, entity, &roots[label], 0); 
 				entities[entity].cntUpdate = 0;
+				entities[entity].label = label;
 			}
-			else if( entities[entity].cntUpdate >= UPD_FRAC * entities[entity].size){
+			else if(entities[entity].size > MIN_STAT && 
+				entities[entity].cntUpdate >= UPD_FRAC * entities[entity].size){
 
 				struct Branch *b = leafPointers[entity];
 				b->rect.boundary[id]++; b->rect.boundary[NUMDIMS+id]++;
@@ -228,8 +236,8 @@ void processStream(){
 					RTreeUpdateLazy(b->outer);
 					b = b->outer->parent;
 				}
-				if(b) printf("Interrupted\n");
-				else printf("Completed\n");
+				//if(b) printf("Interrupted\n");
+				//else printf("Completed\n");
 				entities[entity].cntUpdate = 0;
 			}
 		}
@@ -238,18 +246,19 @@ void processStream(){
 			int id = closestPoint(point,anchorPoints.data,data.dimension-2,Q);
 			entities[entity].fingerprint[id]++;
 			// Finding the class label of the entity
-			int classLabel = classifyEntity(entity,tstart,assignedTime);
-			printf("Entity %d belongs to class %d.\n",entity,classLabel);
+			//int classLabel = classifyEntity(entity,tstart,assignedTime);
+			//printf("Entity %d belongs to class %d.\n",entity,classLabel);
 		}
 	}
 	fclose(fp);
+	fclose(ftime);
 }
 
 void printFinalResult(){
 	int i,j;
-	FILE* fp = fopen("Data Generation/result.data","w");
+	FILE* fp = fopen(strResults,"w");
 	for(i=1;i<=data.noOfEntity;i++){
-		if(entities[i].label == 0){
+		if(entities[i].label == 0 && entities[i].cntUpdate == 0 && entities[i].size > 0){
 			int classLabel = classifyEntity(i,clock(),0.1);
 			fprintf(fp,"%d %d\n",i,classLabel);
 		}
