@@ -3,7 +3,7 @@
 
 /* PGSIZE is normally the natural page size of the machine */
 #define PGSIZE	512
-#define NUMDIMS	20	/* number of dimensions */
+#define NUMDIMS	50	/* number of dimensions for R-Tree*/  /* In this context : the value of Q (Anchor points)*/
 #define NDEBUG
 
 #include "../helper.h"

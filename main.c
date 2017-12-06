@@ -15,10 +15,10 @@ struct RNode** roots; // array of roots of the tree of each class
 struct Branch** leafPointers; // array of pointers which point to the leaf of the tree. 
 							  //leafPointers[i] points to the leaf of the tree which corresponds to ith entity
 
-char* strInitialData = "../temp/Data1/initial_training.data";
-char* strStreamData = "../temp/Data1/stream.data";
+char* strInitialData = "Data Generation/initial_training.data";
+char* strStreamData = "Data Generation/stream.data";
 char* strInterarrival = "Data Generation/inter_arrival_time.data";
-char* strResults = "../temp/Data1/result.data";
+char* strResults = "Data Generation/result.data";
 
 void loadData(){
 	FILE* fp = fopen(strInitialData,"r");
