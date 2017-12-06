@@ -80,12 +80,14 @@ void distributeClassProfiles(){
 	int totAssigned = 0;
 	for(i=1;i<=data.noOfClass;i++){
 		profileCount[i] = (double) P * cntEntities[i] / data.noOfEntity + 0.5;
+		if( profileCount[i] > cntEntities[i])
+			profileCount[i] = cntEntities[i];
 		totAssigned += profileCount[i];
 	}
 
 	// each class is assigned at least one profile
 	for(i=1;i<=data.noOfClass;i++) 
-		if(profileCount[i] == 0) 
+		if(profileCount[i] == 0 && cntEntities[i] > 0) 
 			profileCount[i] = 1 , totAssigned++;
 
 	/* In the event that the number of profiles (assigned to the
@@ -107,7 +109,7 @@ void distributeClassProfiles(){
 	while(totAssigned < P){
 		int id = -1, mn = P+1;
 		for(i=1;i<=data.noOfClass;i++)
-			if(profileCount[i] < mn) 
+			if(profileCount[i] < mn && profileCount[i] < cntEntities[i]) 
 				mn = profileCount[i] , id = i;
 		profileCount[id]++;
 		totAssigned++;
@@ -138,6 +140,8 @@ void generateProfiles(){
 
 	// generate profiles from k-means
 	for(i=1;i<=data.noOfClass;i++){
+		if(profileCount[i] > profileData[i].size)
+			profileCount[i] = profileData[i].size;
 		double** tempCentroids = (double**) malloc(sizeof(double*)*profileCount[i]);
 		for(j=0;j<profileCount[i];j++)
 			tempCentroids[j] = (double*) malloc(sizeof(double)*Q);
@@ -260,7 +264,7 @@ void processStream(){
 
 void printFinalResult(){
 	int i,j;
-	FILE* fp = fopen("result.data","w");
+	FILE* fp = fopen("../temp/Data1/result.data","w");
 	for(i=1;i<=data.noOfEntity;i++){
 		if(entities[i].label == 0){
 			int classLabel = classifyEntity(i);
