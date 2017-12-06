@@ -5,7 +5,7 @@ void kmeans(int K,DATA data,int dimension,double** centroids,int* cluster){
 		printf("K is %d and data size is %d\n",K,data.size);
 		showError("K is greater than total points");
 	}
-	if(K < 0){
+	if(K <= 0){
 		showError("K should be atleast 1");
 	}
 	int choose[K+1];

@@ -14,7 +14,7 @@ ENTITY** profiles; // stores profiles of each class
 int* cntEntities; // stores the number of entities in initial training data for each class
 
 void loadData(){
-	FILE* fp = fopen("../temp/Data1/initial_training.data","r");
+	FILE* fp = fopen("../temp/Data2/initial_training.data","r");
 	fscanf(fp,"%d %d %d %d",&data.size,&data.dimension,&data.noOfClass,&data.noOfEntity);
 	data.data = (double**) malloc(sizeof(double*) * data.size); 
 	int i,j;
@@ -205,7 +205,7 @@ int classifyEntity(int entity){
 
 void processStream(){
 	int i,j;
-	FILE* fp = fopen("../temp/Data1/stream.data","r");
+	FILE* fp = fopen("../temp/Data2/stream.data","r");
 	int flag;
 	double temp , point[data.dimension];
 	int totProcessed = 0;
@@ -264,7 +264,7 @@ void processStream(){
 
 void printFinalResult(){
 	int i,j;
-	FILE* fp = fopen("../temp/Data1/result.data","w");
+	FILE* fp = fopen("../temp/Data2/result.data","w");
 	for(i=1;i<=data.noOfEntity;i++){
 		if(entities[i].label == 0){
 			int classLabel = classifyEntity(i);
