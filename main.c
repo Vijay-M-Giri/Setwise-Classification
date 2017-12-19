@@ -15,10 +15,10 @@ struct RNode** roots; // array of roots of the tree of each class
 struct Branch** leafPointers; // array of pointers which point to the leaf of the tree. 
 							  //leafPointers[i] points to the leaf of the tree which corresponds to ith entity
 
-char* strInitialData = "Data Generation/initial_training.data";
-char* strStreamData = "Data Generation/stream.data";
+char* strInitialData = "../temp/Data1/initial_training.data";
+char* strStreamData = "../temp/Data1/stream.data";
 char* strInterarrival = "Data Generation/inter_arrival_time.data";
-char* strResults = "Data Generation/result.data";
+char* strResults = "../temp/Data1/result.data";
 
 void loadData(){
 	FILE* fp = fopen(strInitialData,"r");
@@ -106,21 +106,37 @@ int isInterrupted(clock_t tstart,double assignedTime){
 }
 
 int classifyEntity(int entity,clock_t tstart,double assignedTime){
-	int i,j;
+	int i,j,l;
 	int classLabel = -1;
 	double mx = -DBL_MAX; // finding max because the keys are stored as negatives
 	int maxHeapSize = 10000;
 	MaxHeap *frontiers[data.noOfClass+1];
+	int K = 50;
+	int k_best[K];
+	MaxHeap *k_class = createHeap(data.noOfClass+1);
+
+	if(K > data.noOfClass) K = data.noOfClass;
 	
 	// initialize frontiers and inserting the root of each tree into the heap
 	for(i=1;i<=data.noOfClass;i++){
 		frontiers[i] = createHeap(maxHeapSize);
 		HNode* temp = (HNode*) malloc(sizeof(HNode));
+		HNode* k_temp = (HNode*) malloc(sizeof(HNode));
 		temp->nodeInHeap = roots[i];
+		k_temp->nodeInHeap = (struct RNode*) i;
 		// multiplied with -1 to make the MaxHeap into a MinHeap
 		temp->key = -1.0 * cosineDistance(temp->nodeInHeap->agg,
 										entities[entity]);
+		k_temp->key = temp->key;
 		insertKey(frontiers[i],temp);
+		insertKey(k_class,k_temp);
+	}
+
+	// finding k-best class for current entity
+	for(i=0;i<K;i++){
+		HNode* nextMax = extractMax(k_class);
+		k_best[i] = (int) nextMax->nodeInHeap;
+		free(nextMax);
 	}
 
 	int robin = 1;
@@ -129,7 +145,8 @@ int classifyEntity(int entity,clock_t tstart,double assignedTime){
 	while(robin){ // round robin among the classes
 
 		robin = 0;
-		for(i=1;i<=data.noOfClass;i++){
+		for(l=0;l<K;l++){
+			i = k_best[l];
 			if(frontiers[i]->heap_size <= 0) continue;
 			if(isInterrupted(tstart,assignedTime)){
 				interrupted = 1;
@@ -168,7 +185,8 @@ int classifyEntity(int entity,clock_t tstart,double assignedTime){
 			break;
 	}
 
-	for(i=1;i<=data.noOfClass;i++){
+	for(l=0;l<K;l++){
+		i = k_best[l];
 		if(frontiers[i]->heap_size <= 0) continue;
 		HNode* nextMax = extractMax(frontiers[i]);
 		if(nextMax->key >= mx){
@@ -177,8 +195,13 @@ int classifyEntity(int entity,clock_t tstart,double assignedTime){
 		}
 		// free the heap
 		free(nextMax);
+	}
+
+	for(i=1;i<=data.noOfClass;i++){
 		freeHeap(frontiers[i]);
 	}
+
+	freeHeap(k_class);
 
 	return classLabel;
 }
